@@ -132,7 +132,7 @@ class Realtime: ErrorListener {
 
                         connectCalled.set(true)
 
-                        emitSdk(CONNECTED, CONNECTED)
+                        emitSdk(CONNECTED, true)
 
                         latencyTimerJob = CoroutineScope(Dispatchers.IO).launch {
                             while (isActive) {
@@ -435,7 +435,15 @@ class Realtime: ErrorListener {
                 .build()
 
             val streamContext = jetStream?.getStreamContext(getStreamName())
-            val consumer = streamContext?.createOrUpdateConsumer(consumerConfig);
+            var consumer: ConsumerContext? = null;
+
+            try{
+                consumer = streamContext?.createOrUpdateConsumer(consumerConfig);
+            }catch (e : IOException){
+                utils.logError(e.message!!, topic)
+
+                cancel();
+            }
 
             consumer?.consume{ msg ->
                 val msgTopic = stripTopicHash(msg.subject)
@@ -576,6 +584,10 @@ class Realtime: ErrorListener {
         super.errorOccurred(conn, error)
 
         utils.logError(error, null)
+
+        if(error == "Authorization Violation"){
+            emitSdk(CONNECTED, false)
+        }
     }
 
     // ---- Connection Recovery Methods ----

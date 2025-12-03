@@ -29,6 +29,7 @@ import io.nats.client.api.ReplayPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromByteArray
@@ -214,7 +215,17 @@ class Queue {
             val consumerConfig = consumerConfigBuilder.build();
 
             val streamContext = jetstream?.getStreamContext(utils.getQueueName())
-            val consumer = streamContext?.createOrUpdateConsumer(consumerConfig);
+
+            var consumer: ConsumerContext? = null;
+
+            try{
+                consumer = streamContext?.createOrUpdateConsumer(consumerConfig);
+            }catch (e : IOException){
+                utils.logError(e.message!!, topic)
+
+                cancel();
+            }
+
             consumerMap[topic] = consumer!!
 
             while(isActive){

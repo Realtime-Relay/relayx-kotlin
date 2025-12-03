@@ -147,8 +147,8 @@ class Utils {
                     println("-------------------------------------------------")
                 }else if(err == "Timeout or no response waiting for NATS JetStream server"){
                     println("-------------------------------------------------")
-                    println("Event: Publish Permissions Violation")
-                    println("Description: User is not permitted to publish on '$topic'")
+                    println("Event: Publish / Subscribe Permissions Violation")
+                    println("Description: User is not permitted to publish / subscribe on '$topic'")
                     println("Topic: $topic")
                     println("Docs to Solve Issue: <>")
                     println("-------------------------------------------------")
