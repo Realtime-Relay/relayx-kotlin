@@ -81,7 +81,7 @@ class Realtime: ErrorListener {
     private var startZonedDateTime: ZonedDateTime? = null
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var callbackScope = CoroutineScope(SupervisorJob())
+    private var callbackScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val queueInstances = CopyOnWriteArrayList<Queue>()
 
     private val utils = Utils();
@@ -228,6 +228,8 @@ class Realtime: ErrorListener {
                 ack = jetStream?.publish(finalTopic, packed)
             }catch (e : IOException){
                 utils.logError(e.message!!, topic)
+            }catch (e : JetStreamApiException){
+                utils.logError(e, topic)
             }
 
             return@withContext ack != null;
@@ -372,6 +374,7 @@ class Realtime: ErrorListener {
         queue.jetstream = jetStream;
         queue.apiKey = apiKey;
         queue.debug = debug;
+        queue.callbackScope = callbackScope
 
         val queueInit = queue.init(queueID);
 

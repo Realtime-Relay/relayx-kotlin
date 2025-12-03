@@ -18,22 +18,42 @@ import relay.Realtime.Companion.RECONNECTED
 import relay.Realtime.Companion.RECONNECTING
 import relay.Realtime.Companion.RECONN_FAIL
 import io.nats.client.ConnectionListener
+import io.nats.client.ConsumerContext
+import io.nats.client.JetStreamApiException
+import io.nats.client.api.AckPolicy
+import io.nats.client.api.ConsumerConfiguration
+import io.nats.client.api.DeliverPolicy
 import io.nats.client.api.PublishAck
+import io.nats.client.api.ReplayPolicy
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
+import relay.models.ConsumerConfig
+import relay.models.QueueMessage
 import java.io.IOException
 import java.nio.charset.StandardCharsets
 import java.time.Duration
 import java.time.Instant
+import java.time.ZonedDateTime
 import java.util.Collections
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.collections.set
 
 class Queue {
 
     var natsClient: Connection? = null;
     var jetstream: JetStream? = null
 
-    var jetstreamManager: JetStreamManagement? = null;
+    var callbackScope: CoroutineScope? = null
+
+    private val listeners = ConcurrentHashMap<String, (Any) -> Unit>()
+    private val subscribedTopics = CopyOnWriteArraySet<String>()
 
     var apiKey: String? = null;
 
@@ -50,6 +70,11 @@ class Queue {
 
     private val offlineMessages = Collections.synchronizedList(mutableListOf<OfflineMessage>())
 
+    private val consumerMap = ConcurrentHashMap<String, ConsumerContext>()
+    private val consumerJobs = ConcurrentHashMap<String, Job>()
+
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     private val utils = Utils();
 
     fun init(queueID: String): Boolean{
@@ -65,9 +90,9 @@ class Queue {
     }
 
     suspend fun publish(topic: String, message: Any): Boolean = withContext(Dispatchers.IO) {
-        validateTopic(topic)
-        validateEmptyMessage(message)
-        validateMessage(message)
+        utils.validateTopic(topic)
+        utils.validateEmptyMessage(message)
+        utils.validateMessage(message)
 
         if (reservedTopics.contains(topic)) throw IllegalArgumentException("Cannot publish to a reserved SDK topic: $topic")
 
@@ -88,6 +113,8 @@ class Queue {
                 ack = jetstream?.publish(natsMsg)
             }catch (e : IOException){
                 utils.logError(e.message!!, topic)
+            }catch (e : JetStreamApiException){
+                utils.logError(e, topic)
             }
 
             return@withContext ack?.error == null;
@@ -98,6 +125,108 @@ class Queue {
             ))
             false
         }
+    }
+
+    suspend fun consume(config: ConsumerConfig, listener: (Any) -> Unit) = withContext(Dispatchers.IO){
+        validateConfig(config)
+
+        val topic = config.topic!!;
+
+        if(listeners.containsKey(topic)){
+            return@withContext false
+        }
+
+        listeners[topic] = listener
+
+        if(!reservedTopics.contains(topic)){
+            subscribedTopics.add(topic)
+
+            if(isConnected.get()){
+                startConsumer(config)
+            }
+        }
+
+        return@withContext true
+    }
+
+    // Support functions
+    private fun startConsumer(config: ConsumerConfig) {
+        val topic = config.topic!!
+
+        val job = ioScope.launch {
+
+            val finalTopic = utils.finalTopic(topic)
+
+            val consumerConfigBuilder = ConsumerConfiguration.builder()
+                .name(config.name)
+                .durable(config.name)
+                .deliverGroup(config.group)
+                .filterSubject(finalTopic)
+                .ackPolicy(AckPolicy.Explicit)
+                .deliverPolicy(DeliverPolicy.New)
+                .replayPolicy(ReplayPolicy.Instant)
+
+            if(config.ack_wait != null){
+                consumerConfigBuilder.ackWait(Duration.ofSeconds(config.ack_wait!!))
+            }
+
+            if(config.back_off != null){
+                val fBackOff = config.back_off;
+
+                consumerConfigBuilder.backoff(*fBackOff!!.map { Duration.ofSeconds(it) }.toTypedArray())
+            }
+
+            if(config.max_deliver != null){
+                consumerConfigBuilder.maxDeliver(config.max_deliver)
+            }
+
+            if(config.max_ack_pending != null){
+                consumerConfigBuilder.maxDeliver(config.max_ack_pending)
+            }
+
+            val consumerConfig = consumerConfigBuilder.build();
+
+            val streamContext = jetstream?.getStreamContext(utils.getQueueName())
+            val consumer = streamContext?.createOrUpdateConsumer(consumerConfig);
+
+            consumer?.consume{ msg ->
+                val msgTopic = utils.stripTopicHash(msg.subject)
+
+                try {
+                    val receivedTime = Instant.now().toEpochMilli()
+                    msg.inProgress();
+
+                    val unpacked = MsgPack.decodeFromByteArray<Message>(msg.data)
+
+                    utils.log("Sent => ${unpacked.start}")
+                    utils.log("Latency => ${receivedTime - unpacked.start!!}")
+
+                    utils.log(unpacked.toString())
+
+                    val match = utils.topicPatternMatcher(topic, msgTopic)
+                    utils.log("$topic || $msgTopic => $match")
+
+                    if(match){
+                        val queueMsg = QueueMessage(
+                            message = unpacked,
+                            ack = { msg.ack() },
+                            nack = { msg.nakWithDelay(it) }
+                        )
+
+                        callbackScope!!.launch {
+                            listeners[topic]?.invoke(queueMsg)
+                        }
+                    }
+                } catch (e: Exception) {
+                    msg.nakWithDelay(Duration.ofSeconds(5))
+                    utils.log("Consumer error [$topic]: ${e.message}")
+                }
+            }
+
+            consumerMap[topic] = consumer!!
+        }
+
+        consumerJobs[topic] = job
     }
 
     private fun getQueueNamespace(): Boolean{
@@ -182,25 +311,19 @@ class Queue {
         }
     }
 
-    private fun validateTopic(topic: String) {
-        val topicNotNull = !topic.isBlank()
+    private fun validateConfig(config: ConsumerConfig){
+        require(config.name != null && !config.name!!.isEmpty()){
+            "config.name cannot be blank / empty"
+        }
 
-        val topicRegex = Regex("^(?!.*\\\$)(?:[A-Za-z0-9_*~-]+(?:\\.[A-Za-z0-9_*~-]+)*(?:\\.>)?|>)\$")
+        require(config.name != null && !config.topic!!.isEmpty()){
+            "config.topic cannot be blank / empty"
+        }
 
-        val spaceStarCheck = !topic.contains(" ") && topicRegex.matches(topic)
-
-        require(spaceStarCheck && topicNotNull) { "Invalid topic" }
+        require(config.name != null && !config.group!!.isEmpty()){
+            "config.group cannot be blank / empty"
+        }
     }
 
-    private fun validateMessage(msg: Any) {
-        require(msg is String || msg is Number || msg is Map<*, *>) { "Message must be string, number or Map<String, String | Number | Map>" }
-    }
 
-    fun isMessageValid(msg: Any) {
-        require(msg is String || msg is Number || msg is Map<*, *>) { "Message must be string, number or Map<String, String | Number | Map>" }
-    }
-
-    private fun validateEmptyMessage(msg: Any) {
-        require(msg != null) { "Message must not be null or empty" }
-    }
 }

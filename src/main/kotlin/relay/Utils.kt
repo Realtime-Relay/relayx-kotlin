@@ -1,5 +1,6 @@
 package relay
 
+import io.nats.client.JetStreamApiException
 import java.io.File
 import java.io.FileOutputStream
 
@@ -45,29 +46,127 @@ class Utils {
         }
     }
 
-    fun logError(err: String?, topic: String?){
+    fun logError(err: Any?, topic: String?){
         errorLogging.log(err, topic)
     }
 
     fun finalTopic(topic: String): String = "$hash.$topic"
 
+    fun getQueueName(): String = "Q_$namespace"
+
+    fun topicPatternMatcher(patternA: String, patternB: String): Boolean {
+        val a = patternA.split(".")
+        val b = patternB.split(".")
+
+        var i = 0
+        var j = 0
+
+        var starAi = -1
+        var starAj = -1
+        var starBi = -1
+        var starBj = -1
+
+        while (i < a.size || j < b.size) {
+            val tokA = a.getOrNull(i)
+            val tokB = b.getOrNull(j)
+
+            val singleWildcard =
+                (tokA == "*" && j < b.size) ||
+                        (tokB == "*" && i < a.size)
+
+            if ((tokA != null && tokA == tokB) || singleWildcard) {
+                i++
+                j++
+                continue
+            }
+
+            // Handle multi-token wildcard ">" — must be final
+            if (tokA == ">") {
+                if (i != a.lastIndex) return false // '>' must be at the end
+                if (j >= b.size) return false       // must consume at least one token
+                starAi = i++
+                starAj = ++j
+                continue
+            }
+            if (tokB == ">") {
+                if (j != b.lastIndex) return false
+                if (i >= a.size) return false
+                starBi = j++
+                starBj = ++i
+                continue
+            }
+
+            // Backtrack if previous '>' was seen
+            if (starAi != -1) {
+                j = ++starAj
+                continue
+            }
+            if (starBi != -1) {
+                i = ++starBj
+                continue
+            }
+
+            return false // No match possible
+        }
+
+        return true
+    }
+
+    fun stripTopicHash(topic: String): String = topic.replace("${hash}.", "")
+
+    fun validateMessage(msg: Any) {
+        require(msg is String || msg is Number || msg is Map<*, *>) { "Message must be string, number or Map<String, String | Number | Map>" }
+    }
+
+    fun validateEmptyMessage(msg: Any) {
+        require(msg != null) { "Message must not be null or empty" }
+    }
+
+    fun validateTopic(topic: String) {
+        val topicNotNull = !topic.isBlank()
+
+        val topicRegex = Regex("^(?!.*\\\$)(?:[A-Za-z0-9_*~-]+(?:\\.[A-Za-z0-9_*~-]+)*(?:\\.>)?|>)\$")
+
+        val spaceStarCheck = !topic.contains(" ") && topicRegex.matches(topic)
+
+        require(spaceStarCheck && topicNotNull) { "Invalid topic" }
+    }
+
+    // Error Logging Class
     class ErrorLogging(){
 
-        fun log(err: String?, topic: String?){
-            if(err == "Authorization Violation"){
-                println("-------------------------------------------------")
-                println("Event: Authentication Failure")
-                println("Description: User failed to authenticate. Check if API key exists & if it is enabled")
-                println("Docs to Solve Issue: <>")
-                println("-------------------------------------------------")
-            }else if(err == "Timeout or no response waiting for NATS JetStream server"){
-                println("-------------------------------------------------")
-                println("Event: Publish Permissions Violation")
-                println("Description: User is not permitted to publish on '$topic'")
-                println("Topic: $topic")
-                println("Docs to Solve Issue: <>")
-                println("-------------------------------------------------")
+        fun log(err: Any?, topic: String?){
+
+            if(err is String){
+                if(err == "Authorization Violation"){
+                    println("-------------------------------------------------")
+                    println("Event: Authentication Failure")
+                    println("Description: User failed to authenticate. Check if API key exists & if it is enabled")
+                    println("Docs to Solve Issue: <>")
+                    println("-------------------------------------------------")
+                }else if(err == "Timeout or no response waiting for NATS JetStream server"){
+                    println("-------------------------------------------------")
+                    println("Event: Publish Permissions Violation")
+                    println("Description: User is not permitted to publish on '$topic'")
+                    println("Topic: $topic")
+                    println("Docs to Solve Issue: <>")
+                    println("-------------------------------------------------")
+                }
             }
+
+            if(err is JetStreamApiException){
+                val apiErrorCode = err.apiErrorCode;
+                val code = err.errorCode
+
+                if(code == 503 && apiErrorCode == 10077){
+                    println("-------------------------------------------------")
+                    println("Event: Message Limit Exceeded")
+                    println("Description: Current message count for account exceeds plan defined limits. Upgrade plan to remove limits")
+                    println("Link: https://console.relay-x.io/billing")
+                    println("-------------------------------------------------")
+                }
+            }
+
         }
 
     }

@@ -1,7 +1,10 @@
 package examples
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import relay.Realtime
+import relay.models.ConsumerConfig
+import relay.models.QueueMessage
 import relay.models.RealtimeConfig
 
 fun main() = runBlocking {
@@ -20,11 +23,27 @@ fun main() = runBlocking {
             val queue = realtime.initQueue("692adca3af5ed9d55e1b1ece")
             println("Queue => $queue")
 
-            realtime.publish("hello.>", "Sup")
+            val config = ConsumerConfig()
+            config.name = "Test434"
+            config.group = "test-group"
+            config.topic = "queue.123"
+            config.back_off = listOf<Long>(2L, 5L, 10L)
+
+            queue!!.consume(config, { message ->
+                var queueMsg = message as QueueMessage
+
+                println(queueMsg)
+
+//                queueMsg.ack()
+            })
         }
     }
 
     realtime.on("hello.>") { data ->
+        println(data)
+    }
+
+    realtime.on("power-telemetry") { data ->
         println(data)
     }
 
