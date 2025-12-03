@@ -25,25 +25,44 @@ fun main() = runBlocking {
             val queue = realtime.initQueue("692adca3af5ed9d55e1b1ece")
             println("Queue => $queue")
 
-            val config = ConsumerConfig()
+            var config = ConsumerConfig()
             config.name = "Test434"
             config.group = "test-group"
             config.topic = "queue.123"
             config.ack_wait = 2L
 
-            var count = 0;
+            queue!!.consume(config, { message ->
+                var queueMsg = message as QueueMessage
+
+                println("queue.123 => $queueMsg")
+
+                queueMsg.ack()
+            })
+
+            config = ConsumerConfig()
+            config.name = "Test4342"
+            config.group = "test-group"
+            config.topic = "queue.*.123"
+            config.ack_wait = 2L
 
             queue!!.consume(config, { message ->
                 var queueMsg = message as QueueMessage
 
-                println(queueMsg)
+                println("queue.*.123 => $queueMsg")
 
-                ++count;
+                queueMsg.ack()
+            })
 
-                if(count == 2){
-                    println("Detatching consumer")
-                    queue.detachConsumer("queue.123")
-                }
+            config = ConsumerConfig()
+            config.name = "Test4343"
+            config.group = "test-group"
+            config.topic = "queue.>"
+            config.ack_wait = 2L
+
+            queue!!.consume(config, { message ->
+                var queueMsg = message as QueueMessage
+
+                println("queue.> => $queueMsg")
 
                 queueMsg.ack()
             })
