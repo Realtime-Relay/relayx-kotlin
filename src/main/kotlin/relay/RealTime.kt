@@ -398,7 +398,6 @@ class Realtime: ErrorListener {
             val responseMsg = natsConnection?.request("accounts.user.get_namespace", originalJson, Duration.ofSeconds(5))
 
             val responseStr = String(responseMsg?.data ?: byteArrayOf(), StandardCharsets.UTF_8)
-            logCatDebug(responseStr)
 
             val responseJson = JsonParser.parseString(responseStr).asJsonObject
 

@@ -1,6 +1,7 @@
 package relay
 
 import io.nats.client.JetStreamApiException
+import io.nats.client.JetStreamStatusException
 import java.io.File
 import java.io.FileOutputStream
 
@@ -163,6 +164,16 @@ class Utils {
                     println("Event: Message Limit Exceeded")
                     println("Description: Current message count for account exceeds plan defined limits. Upgrade plan to remove limits")
                     println("Link: https://console.relay-x.io/billing")
+                    println("-------------------------------------------------")
+                }
+            }
+
+            if(err is JetStreamStatusException){
+                if(err.message == "409 Consumer Deleted"){
+                    println("-------------------------------------------------")
+                    println("Event: Consumer Manually Deleted!")
+                    println("Description: Consumer was manually deleted by user using deleteConsumer() or the library equivalent")
+                    println("Docs to Solve Issue: <>")
                     println("-------------------------------------------------")
                 }
             }

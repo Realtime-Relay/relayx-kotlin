@@ -20,6 +20,7 @@ import relay.Realtime.Companion.RECONN_FAIL
 import io.nats.client.ConnectionListener
 import io.nats.client.ConsumerContext
 import io.nats.client.JetStreamApiException
+import io.nats.client.JetStreamStatusException
 import io.nats.client.api.AckPolicy
 import io.nats.client.api.ConsumerConfiguration
 import io.nats.client.api.DeliverPolicy
@@ -28,6 +29,7 @@ import io.nats.client.api.ReplayPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
@@ -149,6 +151,31 @@ class Queue {
         return@withContext true
     }
 
+    fun detachConsumer(topic: String){
+        utils.validateTopic(topic)
+        listeners.remove(topic)
+        subscribedTopics.remove(topic)
+
+        consumerJobs.get(topic)?.cancel()
+
+        consumerJobs.remove(topic)
+
+        consumerMap.remove(topic)
+    }
+
+    suspend fun deleteConsumer(name: String): Boolean = withContext(Dispatchers.IO) {
+        var deleted: Boolean = false;
+
+        try{
+            deleted = jetstream?.getStreamContext(utils.getQueueName())!!.deleteConsumer(name)
+        }catch (e : Exception){
+            utils.log("Failed to delete consumer $name")
+            utils.log(e.message!!)
+        }
+
+        return@withContext deleted
+    }
+
     // Support functions
     private fun startConsumer(config: ConsumerConfig) {
         val topic = config.topic!!
@@ -188,18 +215,30 @@ class Queue {
 
             val streamContext = jetstream?.getStreamContext(utils.getQueueName())
             val consumer = streamContext?.createOrUpdateConsumer(consumerConfig);
+            consumerMap[topic] = consumer!!
 
-            consumer?.consume{ msg ->
+            while(isActive){
+                var msg: io.nats.client.Message? = null;
+
+                try {
+                    msg = consumer.next(1000)
+                }catch (e : JetStreamStatusException){
+                    // We want to catch the error, print it and kill the conusmer
+
+                    utils.logError(e, null)
+                    detachConsumer(topic)
+                }
+
+                if(msg == null){
+                    continue
+                }
+
                 val msgTopic = utils.stripTopicHash(msg.subject)
 
                 try {
-                    val receivedTime = Instant.now().toEpochMilli()
                     msg.inProgress();
 
                     val unpacked = MsgPack.decodeFromByteArray<Message>(msg.data)
-
-                    utils.log("Sent => ${unpacked.start}")
-                    utils.log("Latency => ${receivedTime - unpacked.start!!}")
 
                     utils.log(unpacked.toString())
 
@@ -222,8 +261,6 @@ class Queue {
                     utils.log("Consumer error [$topic]: ${e.message}")
                 }
             }
-
-            consumerMap[topic] = consumer!!
         }
 
         consumerJobs[topic] = job
