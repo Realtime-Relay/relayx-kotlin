@@ -32,6 +32,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.decodeFromByteArray
 import kotlinx.serialization.encodeToByteArray
 import relay.models.ConsumerConfig
@@ -331,6 +332,10 @@ class Queue {
             ConnectionListener.Events.RECONNECTED -> {
                 isConnected.set(true)
                 isReconnecting.set(false)
+
+                CoroutineScope(Dispatchers.IO).launch {
+                    resendOfflineMessages()
+                }
             }
             ConnectionListener.Events.DISCONNECTED -> {
                 isConnected.set(false)
@@ -342,6 +347,19 @@ class Queue {
             }
             else -> {}
         }
+    }
+
+    private suspend fun resendOfflineMessages() = withContext(Dispatchers.IO) {
+        val result = mutableListOf<OfflineMessage>()
+
+        for (msg in offlineMessages) {
+            val topic = msg.msg.room
+            val content = msg.msg.message
+            val sent = publish(topic!!, content!!)
+
+            result.add(OfflineMessage(msg=msg.msg, resent=sent))
+        }
+        offlineMessages.clear()
     }
 
     // Utility
