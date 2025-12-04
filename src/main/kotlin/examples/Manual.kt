@@ -7,12 +7,14 @@ import relay.Realtime
 import relay.models.ConsumerConfig
 import relay.models.QueueMessage
 import relay.models.RealtimeConfig
+import java.io.File
 import java.util.stream.IntStream.range
 
 fun main() = runBlocking {
     val realtime = Realtime()
     realtime.apiKey = ""
     realtime.secretKey = ""
+    realtime.filesDir = File("/Users")
 
     val config = RealtimeConfig()
     config.staging = true

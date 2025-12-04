@@ -19,6 +19,7 @@ import kotlinx.serialization.encodeToByteArray
 import relay.models.LatencyBody
 import relay.models.RealtimeConfig
 import relay.models.RequestBody
+import java.io.File
 import java.io.IOException
 import java.net.ConnectException
 import java.nio.charset.StandardCharsets
@@ -51,6 +52,7 @@ class Realtime: ErrorListener {
 
     var apiKey: String = "";
     var secretKey: String = "";
+    lateinit var filesDir: File;
 
     private var staging: Boolean = false
     private var debug = false
@@ -90,6 +92,7 @@ class Realtime: ErrorListener {
         requireNotNull(config) { "RealtimeConfig must not be null" }
         require(apiKey.isNotBlank()) { "apiKey must not be empty" }
         require(secretKey.isNotBlank()) { "secretKey must not be empty" }
+        requireNotNull(filesDir) { "Files Directory must not be null" }
 
         this.staging = config.staging
         debug = config.debug
@@ -101,7 +104,7 @@ class Realtime: ErrorListener {
             return@withContext
         }
 
-        val credsFile = utils.createNatsCredsFile(apiKey, secretKey)
+        val credsFile = utils.createNatsCredsFile(filesDir,apiKey, secretKey)
 
         val builder = Options.Builder()
             .authHandler(Nats.credentials(credsFile.absolutePath))

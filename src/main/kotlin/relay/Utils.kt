@@ -13,7 +13,7 @@ class Utils {
 
     var errorLogging = ErrorLogging()
 
-    fun createNatsCredsFile(jwt: String, nkeySeed: String): File {
+    fun createNatsCredsFile(parentDir: File, jwt: String, nkeySeed: String): File {
         val filename = "nats_user.creds"
 
         val fileContent = """
@@ -33,7 +33,7 @@ class Utils {
     """.trimIndent()
 
         // Save to current working directory
-        val file = File(filename)
+        val file = File(parentDir, filename)
         FileOutputStream(file).use { output ->
             output.write(fileContent.toByteArray(Charsets.UTF_8))
         }

@@ -13,6 +13,7 @@ import org.mockito.Mock
 import org.mockito.junit.MockitoJUnitRunner
 import relay.Realtime
 import relay.models.RealtimeConfig
+import java.io.File
 import java.lang.Exception
 import kotlin.test.assertTrue
 
@@ -32,6 +33,7 @@ class RealtimeTest {
             val realtime = Realtime()
             realtime.apiKey = ""
             realtime.secretKey = ""
+            realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
             val config = RealtimeConfig();
             config.staging = true
@@ -47,6 +49,7 @@ class RealtimeTest {
             val realtime = Realtime()
             realtime.apiKey = "<KEY>"
             realtime.secretKey = ""
+            realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
             val config = RealtimeConfig();
             config.staging = true
@@ -61,6 +64,7 @@ class RealtimeTest {
             val realtime = Realtime()
             realtime.apiKey = ""
             realtime.secretKey = "SECRET"
+            realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
             val config = RealtimeConfig();
             config.staging = true
@@ -70,10 +74,26 @@ class RealtimeTest {
     }
 
     @Test
+    fun `No FilesDir Passed`() {
+        val exception = Assert.assertThrows(kotlin.UninitializedPropertyAccessException::class.java) {
+            val realtime = Realtime()
+            realtime.apiKey = "API"
+            realtime.secretKey = "SECRET"
+            // filesDir is intentionally not set
+
+            val config = RealtimeConfig();
+            config.staging = true
+            realtime.init(config)
+        }
+        Assert.assertEquals("lateinit property filesDir has not been initialized", exception.message)
+    }
+
+    @Test
     fun `init() Test with Multiple Configurations`() = runBlocking {
         val realtime = Realtime()
         realtime.apiKey = "API"
         realtime.secretKey = "SECRET"
+        realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
         // init(true)
         val config = RealtimeConfig();
@@ -100,6 +120,7 @@ class RealtimeTest {
             realtimeEnabled = Realtime()
             realtimeEnabled.apiKey = apiKey;
             realtimeEnabled.secretKey = secretKey
+            realtimeEnabled.filesDir = File.createTempFile("test", "dir").parentFile!!
 
             val config = RealtimeConfig();
             config.staging = true
@@ -159,6 +180,7 @@ class RealtimeTest {
             realtimeEnabled = Realtime()
             realtimeEnabled.apiKey = apiKey;
             realtimeEnabled.secretKey = secretKey
+            realtimeEnabled.filesDir = File.createTempFile("test", "dir").parentFile!!
 
             val config = RealtimeConfig();
             config.staging = true
@@ -231,6 +253,7 @@ class RealtimeTest {
                     val realtime = Realtime()
                     realtime.apiKey = apiKey;
                     realtime.secretKey = secretKey
+                    realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
                     realtime.publish(topic, "hey")
                 }
@@ -258,6 +281,7 @@ class RealtimeTest {
                     val realtime = Realtime()
                     realtime.apiKey = apiKey;
                     realtime.secretKey = secretKey
+                    realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
                     println(message)
                     realtime.publish("topic", message!!)
@@ -276,6 +300,7 @@ class RealtimeTest {
             val realtime = Realtime()
             realtime.apiKey = apiKey;
             realtime.secretKey = secretKey
+            realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
             var sent = realtime.publish("topic", "Hey what's up?")
             Assert.assertFalse(sent)
@@ -322,6 +347,7 @@ class RealtimeTest {
             val realtime = Realtime()
             realtime.apiKey = apiKey;
             realtime.secretKey = secretKey
+            realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
             for (topic in reserved) {
                 var init = realtime.on(topic, {})
@@ -388,6 +414,7 @@ class RealtimeTest {
             val realtime = Realtime()
             realtime.apiKey = apiKey;
             realtime.secretKey = secretKey
+            realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
             for (topic in unreservedInvalidTopics) {
                 val exception = Assert.assertThrows(IllegalArgumentException::class.java) {
@@ -439,6 +466,7 @@ class RealtimeTest {
             val realtime = Realtime()
             realtime.apiKey = apiKey;
             realtime.secretKey = secretKey
+            realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
             for (topic in unreservedValidTopics) {
                 realtime.off(topic)
@@ -493,6 +521,7 @@ class RealtimeTest {
             val realtime = Realtime()
             realtime.apiKey = apiKey;
             realtime.secretKey = secretKey
+            realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
             for (topic in unreservedValidTopics) {
                 val exception = Assert.assertThrows(IllegalArgumentException::class.java) {
@@ -509,6 +538,7 @@ class RealtimeTest {
             realtimeEnabled = Realtime()
             realtimeEnabled.apiKey = apiKey;
             realtimeEnabled.secretKey = secretKey
+            realtimeEnabled.filesDir = File.createTempFile("test", "dir").parentFile!!
 
             val config = RealtimeConfig();
             config.staging = true
@@ -545,6 +575,7 @@ class RealtimeTest {
         val realtime = Realtime()
         realtime.apiKey = apiKey;
         realtime.secretKey = secretKey
+        realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
         val unreservedInvalidTopics = mutableListOf(
             "\$foo",
@@ -632,6 +663,7 @@ class RealtimeTest {
         val realtime = Realtime()
         realtime.apiKey = apiKey;
         realtime.secretKey = secretKey
+        realtime.filesDir = File.createTempFile("test", "dir").parentFile!!
 
         val cases: List<Triple<String, String, Boolean>> = listOf(
             Triple("foo", "foo", true),   // 1
