@@ -14,7 +14,7 @@ class Utils {
     var errorLogging = ErrorLogging()
 
     fun createNatsCredsFile(parentDir: File, jwt: String, nkeySeed: String): File {
-        val filename = "nats_user.creds"
+        val filename = "user_creds.creds"
 
         val fileContent = """
         -----BEGIN NATS USER JWT-----
