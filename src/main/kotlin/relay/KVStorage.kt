@@ -4,6 +4,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.nats.client.Connection
+import io.nats.client.JetStreamApiException
 import io.nats.client.KeyValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -101,6 +102,8 @@ class KVStorage (
             kvStore.put(key, value)
         }catch (err: IOException){
             errorLogger.log(err.message!!, null, "kv_write")
+        }catch (err : JetStreamApiException){
+            errorLogger.log(err, null, null)
         }
     }
 
@@ -112,6 +115,8 @@ class KVStorage (
             kvStore.put(key, value)
         }catch (err: IOException){
             errorLogger.log(err.message!!, null, "kv_write")
+        }catch (err : JetStreamApiException){
+            errorLogger.log(err, null, null)
         }
     }
 
@@ -123,6 +128,8 @@ class KVStorage (
             kvStore.put(key, value.toString().toByteArray(Charsets.UTF_8))
         }catch (err: IOException){
             errorLogger.log(err.message!!, null, "kv_write")
+        }catch (err : JetStreamApiException){
+            errorLogger.log(err, null, null)
         }
     }
 
@@ -136,6 +143,8 @@ class KVStorage (
             kvStore.put(key, fValue)
         }catch (err: IOException){
             errorLogger.log(err.message!!, null, "kv_write")
+        }catch (err : JetStreamApiException){
+            errorLogger.log(err, null, null)
         }
     }
 
@@ -149,6 +158,8 @@ class KVStorage (
             kvStore.put(key, fValue)
         }catch (err: IOException){
             errorLogger.log(err.message!!, null, "kv_write")
+        }catch (err : JetStreamApiException){
+            errorLogger.log(err, null, null)
         }
     }
 

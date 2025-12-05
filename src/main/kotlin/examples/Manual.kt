@@ -30,31 +30,31 @@ fun main() = runBlocking {
 
         runBlocking {
             val kvStore = realtime.initKVStore();
-//            kvStore.put("key1", JsonObject().apply{
-//                addProperty("hey", "world")
-//            })
-//
-//            kvStore.put("key2", 123)
-//
-//            kvStore.put("key3", true)
-//
-//            kvStore.put("key4", false)
-//
-//            kvStore.put("key5", 10.123)
-//
-//            kvStore.put("key6", "HELLO EVERYBODY!")
-//
-//            kvStore.put("key7", JsonArray().apply {
-//                add("ehy")
-//                add("Sup")
-//                add(123)
-//                add(123.123)
-//                add(true)
-//                add(false)
-//                add(JsonObject().apply {
-//                    addProperty("hey", "gang")
-//                })
-//            })
+            kvStore.put("key1", JsonObject().apply{
+                addProperty("hey", "world")
+            })
+
+            kvStore.put("key2", 123)
+
+            kvStore.put("key3", true)
+
+            kvStore.put("key4", false)
+
+            kvStore.put("key5", 10.123)
+
+            kvStore.put("key6", "HELLO EVERYBODY!")
+
+            kvStore.put("key7", JsonArray().apply {
+                add("ehy")
+                add("Sup")
+                add(123)
+                add(123.123)
+                add(true)
+                add(false)
+                add(JsonObject().apply {
+                    addProperty("hey", "gang")
+                })
+            })
 
             println("Read back...")
             kvStore.delete("key5")

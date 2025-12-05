@@ -193,6 +193,8 @@ class Utils {
                     println("Description: Current message count for account exceeds plan defined limits. Upgrade plan to remove limits")
                     println("Link: https://console.relay-x.io/billing")
                     println("-------------------------------------------------")
+
+                    throw Error("Message Limit Exceeded")
                 }
             }
 
