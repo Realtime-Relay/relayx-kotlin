@@ -40,9 +40,18 @@ class KVStorage (
         var value: ByteArray? = null
 
         try{
-            value = kvStore.get(key).value
+            val entry = kvStore.get(key!!)
+            if (entry == null) {
+                return@withContext null
+            }
+            value = entry.value
         }catch (err : IOException){
             errorLogger.log(err.message!!, null, "kv_read")
+        }
+
+        // If value is still null after retrieval, return null
+        if (value == null) {
+            return@withContext null
         }
 
         var fVal: Any? = null;
@@ -90,7 +99,7 @@ class KVStorage (
             fVal = null
         }
 
-        kvData = KeyValueData(key=key, value=fVal);
+        kvData = KeyValueData(key=key!!, value=fVal);
         return@withContext kvData;
     }
 
@@ -99,7 +108,13 @@ class KVStorage (
         validateValue(value)
 
         try{
-            kvStore.put(key, value)
+            // Convert float values to string with 'f' suffix to preserve type
+            val storageValue = if (value is Float) {
+                "${value}f".toByteArray(Charsets.UTF_8)
+            } else {
+                value.toString().toByteArray(Charsets.UTF_8)
+            }
+            kvStore.put(key, storageValue)
         }catch (err: IOException){
             errorLogger.log(err.message!!, null, "kv_write")
         }catch (err : JetStreamApiException){
@@ -112,6 +127,7 @@ class KVStorage (
         validateValue(value)
 
         try{
+            logger.log("put($key) => $value")
             kvStore.put(key, value)
         }catch (err: IOException){
             errorLogger.log(err.message!!, null, "kv_write")
@@ -194,7 +210,7 @@ class KVStorage (
         }
     }
 
-    private fun validateKey(key: String){
+    private fun validateKey(key: String?){
         if(key == null){
             throw Error("key cannot be null")
         }
@@ -228,10 +244,21 @@ class KVStorage (
     }
 
     fun parseNumber(str: String): Number? {
-        return str.toIntOrNull()        // Try Int first
-            ?: str.toLongOrNull()       // Then Long
-            ?: str.toDoubleOrNull()     // Then Double
-            ?: str.toFloatOrNull()      // Then Float
+        // Reject invalid formats
+        if (str.isEmpty()) return null
+        if (str.startsWith("+")) return null  // Leading plus sign
+        if (str.startsWith(".")) return null  // Decimal without leading digit
+        if (str.contains(Regex("\\s"))) return null  // Decimal without leading digit
+        if (str == "NaN" || str == "Infinity" || str == "-Infinity") return null
+
+        // Check for explicit float suffix (e.g., "2.71828f")
+        if (str.endsWith("f", ignoreCase = true)) {
+            return str.substring(0, str.length - 1).toFloatOrNull()
+        }
+
+        return str.trim().toIntOrNull()        // Try Int first
+            ?: str.trim().toLongOrNull()       // Then Long
+            ?: str.trim().toDoubleOrNull()     // Then Double
     }
 
 }
