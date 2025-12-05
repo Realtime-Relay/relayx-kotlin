@@ -55,7 +55,7 @@ class Realtime: ErrorListener {
     lateinit var filesDir: File;
 
     private var staging: Boolean = false
-    private var debug = false
+    private var debug: Boolean = false
     private var clientId: String = ""
     private var natsConnection: Connection? = null
     private var jetStream: JetStream? = null
@@ -371,6 +371,7 @@ class Realtime: ErrorListener {
         }
     }
 
+    // Queues
     suspend fun initQueue(queueID: String): Queue? = withContext(Dispatchers.IO){
         val queue = Queue();
         queue.natsClient = natsConnection;
@@ -391,6 +392,15 @@ class Realtime: ErrorListener {
         for (queue in queueInstances) {
             queue.onConnectionEvent(event)
         }
+    }
+
+    // KV Store
+    suspend fun initKVStore(): KVStorage = withContext(Dispatchers.IO){
+        val kvStore = KVStorage(namespace!!, natsConnection!!, debug);
+
+        kvStore.init();
+
+        return@withContext kvStore;
     }
 
     // ---- Internal Methods -----

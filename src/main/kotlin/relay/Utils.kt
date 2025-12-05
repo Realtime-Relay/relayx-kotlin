@@ -48,7 +48,7 @@ class Utils {
     }
 
     fun logError(err: Any?, topic: String?){
-        errorLogging.log(err, topic)
+        errorLogging.log(err, topic, null)
     }
 
     fun finalTopic(topic: String): String = "$hash.$topic"
@@ -136,7 +136,7 @@ class Utils {
     // Error Logging Class
     class ErrorLogging(){
 
-        fun log(err: Any?, topic: String?){
+        fun log(err: Any?, topic: String?, op: String?){
 
             if(err is String){
                 if(err == "Authorization Violation"){
@@ -146,12 +146,40 @@ class Utils {
                     println("Docs to Solve Issue: <>")
                     println("-------------------------------------------------")
                 }else if(err == "Timeout or no response waiting for NATS JetStream server"){
-                    println("-------------------------------------------------")
-                    println("Event: Publish / Subscribe Permissions Violation")
-                    println("Description: User is not permitted to publish / subscribe on '$topic'")
-                    println("Topic: $topic")
-                    println("Docs to Solve Issue: <>")
-                    println("-------------------------------------------------")
+                    if(op == null){
+                        println("-------------------------------------------------")
+                        println("Event: Publish / Subscribe Permissions Violation")
+                        println("Description: User is not permitted to publish / subscribe on '$topic'")
+                        println("Topic: $topic")
+                        println("Docs to Solve Issue: <>")
+                        println("-------------------------------------------------")
+
+                        throw Error("Publish / Subscribe Permissions Violation")
+                    }else if(op == "kv_write"){
+                        println("-------------------------------------------------")
+                        println("Event: KV Write Failure")
+                        println("Description: User is not permitted to write to KV Store")
+                        println("Docs to Solve Issue: <>")
+                        println("-------------------------------------------------")
+
+                        throw Error("KV Write Failure")
+                    }else if(op == "kv_read"){
+                        println("-------------------------------------------------")
+                        println("Event: KV Read Failure")
+                        println("Description: User is not permitted to read from KV Store")
+                        println("Docs to Solve Issue: <>")
+                        println("-------------------------------------------------")
+
+                        throw Error("KV Read Failure")
+                    }else if(op == "kv_delete"){
+                        println("-------------------------------------------------")
+                        println("Event: KV Key Delete Failure")
+                        println("Description: User is not permitted to delete key from KV Store")
+                        println("Docs to Solve Issue: <>")
+                        println("-------------------------------------------------")
+
+                        throw Error("KV Key Delete Failure")
+                    }
                 }
             }
 
@@ -178,6 +206,15 @@ class Utils {
                 }
             }
 
+        }
+    }
+
+    class Logging(private var debug: Boolean){
+
+        fun log(msg: Any){
+            if(debug){
+                println(msg)
+            }
         }
 
     }
