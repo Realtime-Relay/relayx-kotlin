@@ -2,6 +2,7 @@ package relay
 
 import com.ensarsarajcic.kotlinx.serialization.msgpack.MsgPack
 import com.google.gson.Gson
+import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import io.nats.client.*
@@ -207,7 +208,27 @@ class Realtime: ErrorListener {
         }
     }
 
-    suspend fun publish(topic: String, message: Any): Boolean = withContext(Dispatchers.IO) {
+    suspend fun publish(topic: String, message: Number): Boolean = withContext(Dispatchers.IO) {
+        return@withContext publishPvt(topic, message);
+    }
+
+    suspend fun publish(topic: String, message: String): Boolean = withContext(Dispatchers.IO) {
+        return@withContext publishPvt(topic, message);
+    }
+
+    suspend fun publish(topic: String, message: Boolean): Boolean = withContext(Dispatchers.IO) {
+        return@withContext publishPvt(topic, message);
+    }
+
+    suspend fun publish(topic: String, message: JsonObject): Boolean = withContext(Dispatchers.IO) {
+        return@withContext publishPvt(topic, message);
+    }
+
+    suspend fun publish(topic: String, message: JsonArray): Boolean = withContext(Dispatchers.IO) {
+        return@withContext publishPvt(topic, message);
+    }
+
+    private fun publishPvt(topic: String, message: Any): Boolean {
         validateTopic(topic)
         validateEmptyMessage(message)
         validateMessage(message)
@@ -235,10 +256,10 @@ class Realtime: ErrorListener {
                 utils.logError(e, topic)
             }
 
-            return@withContext ack != null;
+            return ack != null;
         } else {
             offlineMessages.add(OfflineMessage(msg=sendMessage, resent=false))
-            false
+            return false
         }
     }
 
@@ -610,7 +631,7 @@ class Realtime: ErrorListener {
         for (msg in offlineMessages) {
             val topic = msg.msg.room
             val content = msg.msg.message
-            val sent = publish(topic!!, content!!)
+            val sent = publishPvt(topic!!, content!!)
 
             result.add(OfflineMessage(msg=msg.msg, resent=sent))
         }
@@ -720,7 +741,9 @@ class Realtime: ErrorListener {
     }
 
     private fun validateMessage(msg: Any) {
-        require(msg is String || msg is Number || msg is Map<*, *>) { "Message must be string, number or Map<String, String | Number | Map>" }
+        require(msg is String || msg is Number || msg is JsonObject || msg is JsonArray) {
+            "Message must be string, number, JsonObject or JsonArray"
+        }
     }
 
     fun isMessageValid(msg: Any) {
