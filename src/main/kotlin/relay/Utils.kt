@@ -143,7 +143,7 @@ class Utils {
                     println("-------------------------------------------------")
                     println("Event: Authentication Failure")
                     println("Description: User failed to authenticate. Check if API key exists & if it is enabled")
-                    println("Docs to Solve Issue: <>")
+                    println("Docs to Solve Issue: https://docs.relay-x.io/docs/setup/api_key_permissions#enabling-and-disabling-keys")
                     println("-------------------------------------------------")
                 }else if(err == "Timeout or no response waiting for NATS JetStream server"){
                     if(op == null){
@@ -151,7 +151,7 @@ class Utils {
                         println("Event: Publish / Subscribe Permissions Violation")
                         println("Description: User is not permitted to publish / subscribe on '$topic'")
                         println("Topic: $topic")
-                        println("Docs to Solve Issue: <>")
+                        println("Docs to Solve Issue: https://docs.relay-x.io/docs/setup/api_key_permissions#messaging--publish-permissions")
                         println("-------------------------------------------------")
 
                         throw Error("Publish / Subscribe Permissions Violation")
@@ -159,7 +159,7 @@ class Utils {
                         println("-------------------------------------------------")
                         println("Event: KV Write Failure")
                         println("Description: User is not permitted to write to KV Store")
-                        println("Docs to Solve Issue: <>")
+                        println("Docs to Solve Issue: https://docs.relay-x.io/docs/setup/api_key_permissions#write-permission")
                         println("-------------------------------------------------")
 
                         throw Error("KV Write Failure")
@@ -167,7 +167,7 @@ class Utils {
                         println("-------------------------------------------------")
                         println("Event: KV Read Failure")
                         println("Description: User is not permitted to read from KV Store")
-                        println("Docs to Solve Issue: <>")
+                        println("Docs to Solve Issue: https://docs.relay-x.io/docs/setup/api_key_permissions#read-permission")
                         println("-------------------------------------------------")
 
                         throw Error("KV Read Failure")
@@ -175,7 +175,7 @@ class Utils {
                         println("-------------------------------------------------")
                         println("Event: KV Key Delete Failure")
                         println("Description: User is not permitted to delete key from KV Store")
-                        println("Docs to Solve Issue: <>")
+                        println("Docs to Solve Issue: https://docs.relay-x.io/docs/setup/api_key_permissions#write-permission")
                         println("-------------------------------------------------")
 
                         throw Error("KV Key Delete Failure")
@@ -203,7 +203,7 @@ class Utils {
                     println("-------------------------------------------------")
                     println("Event: Consumer Manually Deleted!")
                     println("Description: Consumer was manually deleted by user using deleteConsumer() or the library equivalent")
-                    println("Docs to Solve Issue: <>")
+                    println("Docs to Solve Issue: https://docs.relay-x.io/docs/detailed_doc/NodeJS/queue_consume#deleting-a-consumer")
                     println("-------------------------------------------------")
                 }
             }
