@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "com.realtime.relay"
-version = "v1.0.0"
+version = "v1.1.0"
 
 repositories {
     mavenCentral()

@@ -26,7 +26,7 @@ Or for Gradle (Groovy):
 
 ```groovy
 dependencies {
-    implementation 'com.realtime.relay:relayx-kotlin:1.0.0'
+    implementation 'com.realtime.relay:relayx-kotlin:1.1.0'
 }
 ```
 
