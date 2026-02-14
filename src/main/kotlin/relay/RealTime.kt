@@ -35,7 +35,7 @@ import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicBoolean
 
 @Serializable
-data class Message(var id: String? = null, var room: String? = null, @Contextual var message: Any? = null, var start: Long? = null)
+data class Message(var client_id: Int? = null, var id: String? = null, var room: String? = null, @Contextual var message: Any? = null, var start: Long? = null)
 
 data class OfflineMessage(var msg: Message, var resent: Boolean)
 
@@ -297,7 +297,7 @@ class Realtime: ErrorListener {
         }
     }
 
-    suspend fun history(topic: String, start: Long, end: Long?): List<Message> = withContext(Dispatchers.IO) {
+    suspend fun history(topic: String, start: Long, end: Long?, size: Int?): List<Message> = withContext(Dispatchers.IO) {
         validateTopic(topic)
         requireNotNull(start) { "Start date cannot be null" }
 
@@ -321,6 +321,14 @@ class Realtime: ErrorListener {
         val opts = PullSubscribeOptions.builder().configuration(config).build()
         val sub = jetStream?.subscribe(finalTopic, opts)
 
+        var batchSize: Int = 1000000
+
+        if(size != null){
+            if(size >= 0){
+                batchSize = size
+            }
+        }
+
         try {
             while (true) {
                 try {
@@ -328,7 +336,7 @@ class Realtime: ErrorListener {
 
                     logCatDebug("Starting fetch...")
 
-                    val messages = sub?.fetch(1000000, Duration.ofSeconds(2))
+                    val messages = sub?.fetch(batchSize, Duration.ofSeconds(2))
 
                     if(messages?.size == 0 || messages == null){
                         break;
