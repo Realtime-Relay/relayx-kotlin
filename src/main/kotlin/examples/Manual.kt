@@ -30,7 +30,7 @@ fun main() = runBlocking {
             val since = System.currentTimeMillis() - 5 * 60 * 60 * 1_000
             val end = System.currentTimeMillis()
 
-            val history = realtime.history("poll.22535aa5-1e07-469a-a665-a639ee8af40d", since, end)
+            val history = realtime.history("poll.22535aa5-1e07-469a-a665-a639ee8af40d", since, end, null)
             println(history)
 
 //            val kvStore = realtime.initKVStore();
